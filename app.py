@@ -1,6 +1,5 @@
 # Bring in deps
 import os 
-from apikey import apikey 
 
 import streamlit as st
 from PyPDF2 import PdfReader
@@ -14,7 +13,9 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain, SequentialChain 
 from langchain.memory import ConversationBufferMemory  
 
-os.environ['OPENAI_API_KEY'] = apikey
+OPENAI_API_KEY = st.sidebar.text_input("OPENAI_API-KEY", type="password")
+os.environ["OPENAI_API_KEY"] = ""
+
 st.set_page_config(page_title="Ask your PDF")
 st.header("Transmettez vos PDF 💬")
 
@@ -37,7 +38,8 @@ mcq_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_histor
 pdf = st.file_uploader("Upload your PDF", type="pdf")
     
     # extract the text
-if pdf is not None:
+if pdf is not None and OPENAI_API_KEY:
+    os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
     pdf_reader = PdfReader(pdf)
     text = ""
     for page in pdf_reader.pages:
