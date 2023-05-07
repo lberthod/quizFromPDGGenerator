@@ -1,57 +1,73 @@
+# Bring in deps
 import os 
 from apikey import apikey 
 
-import streamlit as st 
+import streamlit as st
+from PyPDF2 import PdfReader
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
+from langchain.callbacks import get_openai_callback
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain, SequentialChain 
 from langchain.memory import ConversationBufferMemory
-from langchain.utilities import WikipediaAPIWrapper 
-
+    
 os.environ['OPENAI_API_KEY'] = apikey
-
-# App framework
-st.title('🦜🔗 Scénario pédagogique')
-prompt = st.text_input('Ecrivez la thématique du cours') 
+st.set_page_config(page_title="Ask your PDF")
+st.header("Transmettez vos de PDF du cours 💬")
 
 # Prompt templates
 title_template = PromptTemplate(
     input_variables = ['topic'], 
-    template='ecris moi le titre du cours pour ce sujet : {topic}'
+    template='Ecris moi un quizz sur le contenu {topic}'
 )
 
-script_template = PromptTemplate(
-    input_variables = ['title', 'wikipedia_research'], 
-    template='ecris moi les contenus du cours  : {title} en te basant sur les ressources suivantes :{wikipedia_research} '
-)
-
-evaluation_template = PromptTemplate(
-    input_variables = ['topic' ], 
-    template='ecris moi les evaluation pour le cours  : {topic} en te basant une evaluation en pédagogie 360 basé sur l analyse des compétences '
-)
 
 # Memory 
 title_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
-script_memory = ConversationBufferMemory(input_key='title', memory_key='chat_history')
-evaluation_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
 
 
-# Llms
-llm = OpenAI(temperature=0.9) 
-title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
-script_chain = LLMChain(llm=llm, prompt=script_template, verbose=True, output_key='script', memory=script_memory)
-evaluation_chain = LLMChain(llm=llm, prompt=evaluation_template, verbose=True, output_key='title', memory=evaluation_memory)
 
-wiki = WikipediaAPIWrapper()
+    # upload file
+pdf = st.file_uploader("Upload votre PDF", type="pdf")
+    
+    # extract the text
+if pdf is not None:
+    pdf_reader = PdfReader(pdf)
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+        
+    # split into chunks
+    text_splitter = CharacterTextSplitter(
+        separator="\n",
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len
+    )
 
-# Show stuff to the screen if there's a prompt
-if prompt: 
-    title = title_chain.run(prompt)
-    st.write(title) 
-    wiki_research = wiki.run(prompt) 
-    script = script_chain.run(title=title, wikipedia_research=wiki_research)
-    st.write(script) 
+    chunks = text_splitter.split_text(text)
+      
+    # create embeddings
+    embeddings = OpenAIEmbeddings()
+    knowledge_base = FAISS.from_texts(chunks, embeddings)
+      
+     # show user input
+    #user_question = st.text_input("Générer un questionnaire comprenant 4 question vrai ou faux et 4 question à choix multiple.")
+    #if user_question:
+    user_question = "Générer un questionnaire comprenant 4 question vrai ou faux et 4 question à choix multiple."
+    docs = knowledge_base.similarity_search("connaisance santé")
+        
+    llm = OpenAI()
+    chain = load_qa_chain(llm, chain_type="stuff")
+    title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
 
-    evaluation = evaluation_chain.run(prompt)
-
-    st.write(evaluation) 
+    #title = title_chain.run(docs)
+    st.write(docs) 
+    #with get_openai_callback() as cb:
+    #    response = chain.run(input_documents=docs, question="Peux tu me générer un questionnaire comprenant 4 question vrai ou faux et 4 question à choix multiple et écrire ici la première question.")
+    #    print(cb)
+           
+   # st.write(response)
