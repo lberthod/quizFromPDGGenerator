@@ -12,26 +12,23 @@ from langchain.llms import OpenAI
 from langchain.callbacks import get_openai_callback
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain, SequentialChain 
-from langchain.memory import ConversationBufferMemory
-    
+from langchain.memory import ConversationBufferMemory  
+
 os.environ['OPENAI_API_KEY'] = apikey
 st.set_page_config(page_title="Ask your PDF")
-st.header("Transmettez vos de PDF du cours 💬")
+st.header("Transmettez vos PDF 💬")
 
 # Prompt templates
 title_template = PromptTemplate(
     input_variables = ['topic'], 
-    template='Ecris moi un quizz sur le contenu {topic}'
+    template='Ecris moi six question "vrai ou faux" sur le contenu {topic}. explique la réponse'
 )
-
 
 # Memory 
 title_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
 
-
-
     # upload file
-pdf = st.file_uploader("Upload votre PDF", type="pdf")
+pdf = st.file_uploader("Upload your PDF", type="pdf")
     
     # extract the text
 if pdf is not None:
@@ -55,19 +52,14 @@ if pdf is not None:
     knowledge_base = FAISS.from_texts(chunks, embeddings)
       
      # show user input
-    #user_question = st.text_input("Générer un questionnaire comprenant 4 question vrai ou faux et 4 question à choix multiple.")
-    #if user_question:
-    user_question = "Générer un questionnaire comprenant 4 question vrai ou faux et 4 question à choix multiple."
-    docs = knowledge_base.similarity_search("connaisance santé")
+    user_question = st.text_input("Donnez le thème de la question")
+    if user_question:
+        docs = knowledge_base.similarity_search(user_question)
         
-    llm = OpenAI()
-    chain = load_qa_chain(llm, chain_type="stuff")
-    title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
+        llm = OpenAI()
+        chain = load_qa_chain(llm, chain_type="stuff")
+        title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
+        st.write(docs) 
 
-    #title = title_chain.run(docs)
-    st.write(docs) 
-    #with get_openai_callback() as cb:
-    #    response = chain.run(input_documents=docs, question="Peux tu me générer un questionnaire comprenant 4 question vrai ou faux et 4 question à choix multiple et écrire ici la première question.")
-    #    print(cb)
-           
-   # st.write(response)
+        title = title_chain.run(str(docs))
+        st.write(title) 
