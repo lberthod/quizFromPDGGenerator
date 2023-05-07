@@ -19,13 +19,19 @@ st.set_page_config(page_title="Ask your PDF")
 st.header("Transmettez vos PDF 💬")
 
 # Prompt templates
-title_template = PromptTemplate(
+truefalse_template = PromptTemplate(
     input_variables = ['topic'], 
-    template='Ecris moi six question "vrai ou faux" sur le contenu {topic}. explique la réponse'
+    template='Write me for  "True or false" question about this : {topic}. Explain in a paragrph the answer'
+)
+
+mcq_title_template = PromptTemplate(
+    input_variables = ['topic'], 
+    template='Write me four  "multiple choice" question, with one true answer and three false about this : {topic}. Explain in a paragrph the answer'
 )
 
 # Memory 
-title_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
+truefalse_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
+mcq_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
 
     # upload file
 pdf = st.file_uploader("Upload your PDF", type="pdf")
@@ -58,8 +64,12 @@ if pdf is not None:
         
         llm = OpenAI()
         chain = load_qa_chain(llm, chain_type="stuff")
-        title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
+        truefalse_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
+        mcq_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, output_key='title', memory=title_memory)
         st.write(docs) 
 
-        title = title_chain.run(str(docs))
-        st.write(title) 
+        mcq = mcq_chain.run(str(docs))
+        truefalse = truefalse_chain.run(str(docs))
+
+        st.write(mcq)
+        st.write(truefalse) 
